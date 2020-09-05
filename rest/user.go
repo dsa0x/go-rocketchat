@@ -22,13 +22,14 @@ type User struct {
 			Bcrypt string `json:"bcrypt"`
 		} `json:"password"`
 	} `json:"services"`
-	Username string   `json:"username"`
-	Name     string   `json:"name"`
-	Type     string   `json:"type"`
-	Status   string   `json:"status"`
-	Active   bool     `json:"active"`
-	Roles    []string `json:"roles"`
-	Emails   []Email  `json:"emails"`
+	Username     string   `json:"username"`
+	Name         string   `json:"name"`
+	Type         string   `json:"type"`
+	Status       string   `json:"status"`
+	Active       bool     `json:"active"`
+	Roles        []string `json:"roles"`
+	Emails       []Email  `json:"emails"`
+	CustomFields map[string]string
 }
 
 type UserPayload struct {
@@ -45,7 +46,7 @@ type UserPayload struct {
 	customFields          map[string]string
 }
 
-type UserStatus struct {
+type StatusResponse struct {
 	message          string
 	connectionStatus string
 	status           string
@@ -82,7 +83,7 @@ func (client *Client) RegisterUser(user UserPayload) User {
 
 func (client *Client) DeleteOwnAccount(user User) {
 	url := client.BuildURL("users.deleteOwnAccount")
-	payload, err := json.Marshal("{password:" + user.Password + "}")
+	payload, err := json.Marshal("{password:" + user.Services.Password.Bcrypt + "}")
 	util.CheckErr(err, "normal")
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(payload))
 	client.authRequired = true
@@ -105,13 +106,35 @@ func (client *Client) Delete(user User) {
 	json.NewDecoder(r.Body).Decode(&userRes)
 
 }
+
+func (client *Client) Update(user User, updatedUser User) {
+	url := client.BuildURL("users.update")
+	user.Username = updatedUser.Username
+	user.Name = updatedUser.Name
+	user.Type = updatedUser.Type
+	user.Status = updatedUser.Status
+	user.Active = updatedUser.Active
+	user.Roles = updatedUser.Roles
+	user.Emails = updatedUser.Emails
+	user.CustomFields = updatedUser.CustomFields
+	payload, err := json.Marshal("{username:" + user.Username + "}")
+	util.CheckErr(err, "normal")
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(payload))
+	client.authRequired = true
+	r, err := client.Do(req)
+	util.CheckErr(err, "normal")
+	userRes := User{}
+	json.NewDecoder(r.Body).Decode(&userRes)
+
+}
+
 func (client *Client) ForgotPassword(user User) {
 	url := client.BuildURL("users.forgotPassword")
 	payload, err := json.Marshal("{email:" + user.Emails[0].address + "}")
 	util.CheckErr(err, "normal")
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(payload))
 	client.authRequired = true
-	r, err := client.Do(req)
+	_, err = client.Do(req)
 	util.CheckErr(err, "normal")
 }
 func (client *Client) GetStatus(user User) {
@@ -122,6 +145,6 @@ func (client *Client) GetStatus(user User) {
 	client.authRequired = true
 	r, err := client.Do(req)
 	util.CheckErr(err, "normal")
-	userStatus := UserStatus{}
+	userStatus := StatusResponse{}
 	json.NewDecoder(r.Body).Decode(&userStatus)
 }
